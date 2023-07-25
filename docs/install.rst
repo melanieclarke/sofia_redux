@@ -234,7 +234,7 @@ methods, it may be useful to install the frozen versions directly. For example, 
 from source using conda to create a new Python environment from the sofia_redux package
 directory::
 
-   conda create --name sofia_redux python=3.10
+   conda create --name sofia_redux python=3.11
    pip install -r freeze_requirements.txt
    pip install -e .
 
