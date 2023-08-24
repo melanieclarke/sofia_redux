@@ -96,11 +96,13 @@ class Model(object):
         header = hdul[0].header
 
         instrument = str(header.get('INSTRUME')).lower()
-
         if instrument in ['forcast', 'flitecam']:
             model = high_model.Grism(hdul)
             if model.num_orders == 0:
                 raise NotImplementedError('Image display is not supported.')
+        elif instrument in ['nirspec']:
+            hdul = parse_jwst(hdul)
+            model = high_model.MultiOrder(hdul)
         elif instrument == 'general':
             model = high_model.MultiOrder(hdul, general=True)
         elif instrument == 'exes':
@@ -256,12 +258,63 @@ def parse_general(filename: str) -> pf.HDUList:
     header['NAPS'] = 1
     header['NORDERS'] = 1
 
-    hdu_read = pf.PrimaryHDU(data.T, header)
+    hdu_read = pf.PrimaryHDU(data, header)
 
     # Converting it to hdul
     hdul_read = pf.HDUList(hdu_read)
     return hdul_read
 
+
+def parse_jwst(hdul):
+    """Parse spectra from JWST format."""
+    header = hdul[0].header
+
+    norders = 0
+    order_names = []
+    data = {}
+    max_size = 0
+    for hdu in hdul:
+        if hdu.name == 'EXTRACT1D':
+            wave = hdu.data['WAVELENGTH']
+            flux = hdu.data['FLUX']
+            error = hdu.data['FLUX_ERROR']
+            try:
+                order_name = int(hdu.header['SLTNAME'])
+            except ValueError:
+                order_name = norders
+            order_names.append(order_name)
+            norders += 1
+
+            if len(data) == 0:
+                header['XUNITS'] = hdu.header['TUNIT1']
+                header['YUNITS'] = hdu.header['TUNIT2']
+
+            if wave.size > max_size:
+                max_size = wave.size
+
+            data[order_name] = [wave, flux, error]
+
+    # if slits are numbered, set orders from max slit number
+    # This allows filtering orders by slit ID
+    norders = max(order_names)
+
+    # set necessary header keys
+    header['NAPS'] = 1
+    header['NORDERS'] = norders
+    header['ORDERS'] = ','.join([str(n) for n in order_names])
+    header['PRODTYPE'] = 'general'
+
+    # assemble array with placeholders for missing orders
+    data_array = np.full((norders, 3, max_size), np.nan)
+    for i in range(norders):
+        if i + 1 in order_names:
+            wave, flux, error = data[i + 1]
+            data_array[i, 0, :wave.size] = wave
+            data_array[i, 1, :wave.size] = flux
+            data_array[i, 2, :wave.size] = error
+
+    rearrange_hdul = pf.HDUList(pf.PrimaryHDU(data_array, header))
+    return rearrange_hdul
 
 def _is_number(s) -> bool:
     """

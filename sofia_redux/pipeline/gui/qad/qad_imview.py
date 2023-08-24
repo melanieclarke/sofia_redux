@@ -1036,6 +1036,13 @@ class QADImView(object):
                                     hdul['STOKES I'].header)
                 s = hdul['STOKES I'].data
                 n = hdul['ERROR I'].data
+            elif 'SCI' in hdul and 'ERR' in hdul:
+                log.debug(f'Making S/N image from SCI and '
+                          f'ERR extensions for {bname}.')
+                hdu = fits.ImageHDU(hdul['SCI'].data,
+                                    hdul['SCI'].header)
+                s = hdul['SCI'].data
+                n = hdul['ERR'].data
             else:
                 raise ValueError(f'Cannot determine S/N from extensions '
                                  f'in file {bname}')
@@ -2011,6 +2018,8 @@ class QADImView(object):
             extname = str(hdu.header.get('EXTNAME', 'UNKNOWN')).lower()
             if 'spectral_flux' in extname:
                 return 'spectrum'
+            elif 'extract1d' in extname:
+                return 'spectrum_only'
 
         header = hdul[0].header
         if 'NAXIS1' in header:

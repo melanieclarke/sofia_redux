@@ -832,7 +832,7 @@ class View(QtWidgets.QMainWindow, ssv.Ui_MainWindow):
                 except IndexError:  # pragma: no cover
                     limits = None
                 if limits:
-                    lim = [f'{val:0.3f}' for val in limits]
+                    lim = [f'{val:0.5g}' for val in limits]
                 else:
                     lim = ['', '']
                 for display, value in zip(limit_display, lim):
