@@ -100,7 +100,7 @@ class Model(object):
             model = high_model.Grism(hdul)
             if model.num_orders == 0:
                 raise NotImplementedError('Image display is not supported.')
-        elif instrument in ['nirspec']:
+        elif instrument in ['nirspec', 'miri']:
             hdul = parse_jwst(hdul)
             model = high_model.MultiOrder(hdul)
         elif instrument == 'general':
@@ -273,17 +273,22 @@ def parse_jwst(hdul):
     order_names = []
     data = {}
     max_size = 0
+    msa = (hdul[0].header['EXP_TYPE'] == 'NRS_MSASPEC')
     for hdu in hdul:
         if hdu.name == 'EXTRACT1D':
             wave = hdu.data['WAVELENGTH']
             flux = hdu.data['FLUX']
             error = hdu.data['FLUX_ERROR']
-            try:
-                order_name = int(hdu.header['SLTNAME'])
-            except ValueError:
+            norders += 1
+
+            if msa:
+                try:
+                    order_name = int(hdu.header['SLTNAME'])
+                except (ValueError, TypeError, KeyError):
+                    order_name = norders
+            else:
                 order_name = norders
             order_names.append(order_name)
-            norders += 1
 
             if len(data) == 0:
                 header['XUNITS'] = hdu.header['TUNIT1']
@@ -296,12 +301,16 @@ def parse_jwst(hdul):
 
     # if slits are numbered, set orders from max slit number
     # This allows filtering orders by slit ID
-    norders = max(order_names)
+    if msa:
+        norders = max(order_names)
 
     # set necessary header keys
     header['NAPS'] = 1
     header['NORDERS'] = norders
-    header['ORDERS'] = ','.join([str(n) for n in order_names])
+    if msa:
+        header['ORDERS'] = ','.join([str(n) for n in order_names])
+    else:
+        header['ORDERS'] = ','.join([str(n) for n in range(norders)])
     header['PRODTYPE'] = 'general'
 
     # assemble array with placeholders for missing orders
@@ -309,9 +318,11 @@ def parse_jwst(hdul):
     for i in range(norders):
         if i + 1 in order_names:
             wave, flux, error = data[i + 1]
-            data_array[i, 0, :wave.size] = wave
-            data_array[i, 1, :wave.size] = flux
-            data_array[i, 2, :wave.size] = error
+        else:
+            continue
+        data_array[i, 0, :wave.size] = wave
+        data_array[i, 1, :wave.size] = flux
+        data_array[i, 2, :wave.size] = error
 
     rearrange_hdul = pf.HDUList(pf.PrimaryHDU(data_array, header))
     return rearrange_hdul

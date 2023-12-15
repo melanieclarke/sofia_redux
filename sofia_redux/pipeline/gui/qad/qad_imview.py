@@ -1122,7 +1122,10 @@ class QADImView(object):
 
         # read it in to a fits header
         phdr = fits.Header()
-        hdr = phdr.fromstring(hdr_str, sep='\n')
+        try:
+            hdr = phdr.fromstring(hdr_str, sep='\n')
+        except (TypeError, ValueError):
+            return
 
         try:
             srcposx = hdr['SRCPOSX'] + 1
