@@ -94,7 +94,7 @@ class Figure(object):
         self.block_current_pane_signal = False
         self.highlight_pane = True
         self.layout = 'grid'
-        self.color_cycle = 'Accessible'
+        self.color_cycle = 'Spectral'
         self.plot_type = 'Step'
         self.show_markers = False
         self.show_grid = False

@@ -100,7 +100,7 @@ class Model(object):
             model = high_model.Grism(hdul)
             if model.num_orders == 0:
                 raise NotImplementedError('Image display is not supported.')
-        elif instrument in ['nirspec', 'miri']:
+        elif instrument in ['nirspec', 'miri', 'nircam', 'niriss']:
             hdul = parse_jwst(hdul)
             model = high_model.MultiOrder(hdul)
         elif instrument == 'general':
@@ -275,10 +275,21 @@ def parse_jwst(hdul):
     max_size = 0
     msa = (hdul[0].header['EXP_TYPE'] == 'NRS_MSASPEC')
     for hdu in hdul:
-        if hdu.name == 'EXTRACT1D':
+        if hdu.name == 'EXTRACT1D' or hdu.name == 'COMBINE1D':
             wave = hdu.data['WAVELENGTH']
             flux = hdu.data['FLUX']
-            error = hdu.data['FLUX_ERROR']
+            sb = hdu.data['SURF_BRIGHT']
+            try:
+                bg = hdu.data['BACKGROUND']
+            except KeyError:
+                bg = np.full_like(flux, np.nan)
+            try:
+                error = hdu.data['FLUX_ERROR']
+            except KeyError:
+                try:
+                    error = hdu.data['ERROR']
+                except KeyError:
+                    error = np.full_like(flux, np.nan)
             norders += 1
 
             if msa:
@@ -291,13 +302,13 @@ def parse_jwst(hdul):
             order_names.append(order_name)
 
             if len(data) == 0:
-                header['XUNITS'] = hdu.header['TUNIT1']
-                header['YUNITS'] = hdu.header['TUNIT2']
+                header['XUNITS'] = hdu.header.get('TUNIT1', 'um')
+                header['YUNITS'] = hdu.header.get('TUNIT2', 'Jy')
 
             if wave.size > max_size:
                 max_size = wave.size
 
-            data[order_name] = [wave, flux, error]
+            data[order_name] = [wave, flux, error, sb, bg]
 
     # if slits are numbered, set orders from max slit number
     # This allows filtering orders by slit ID
@@ -314,15 +325,17 @@ def parse_jwst(hdul):
     header['PRODTYPE'] = 'general'
 
     # assemble array with placeholders for missing orders
-    data_array = np.full((norders, 3, max_size), np.nan)
+    data_array = np.full((norders, 5, max_size), np.nan)
     for i in range(norders):
         if i + 1 in order_names:
-            wave, flux, error = data[i + 1]
+            wave, flux, error, sb, bg = data[i + 1]
         else:
             continue
         data_array[i, 0, :wave.size] = wave
         data_array[i, 1, :wave.size] = flux
         data_array[i, 2, :wave.size] = error
+        data_array[i, 3, :wave.size] = sb
+        data_array[i, 4, :wave.size] = bg
 
     rearrange_hdul = pf.HDUList(pf.PrimaryHDU(data_array, header))
     return rearrange_hdul

@@ -135,7 +135,8 @@ class Pane(object):
                                  '#c6ea6c', '#b9a496', '#d0196b', '#7b85d4']
 
         # default is accessible
-        self.default_colors = self.accessible_cycle
+        #self.default_colors = self.accessible_cycle
+        self.default_colors = self.brewer_cycle
 
         self.aperture_cycle = dict()
         self.order_cycle = list()

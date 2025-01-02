@@ -257,7 +257,7 @@ class Eye(object):
                 return result
             except (NotImplementedError, OSError,
                     RuntimeError, KeyError) as err:
-                log.debug(f'Error encountered: {str(err)}')
+                log.warning(f'Error encountered: {str(err)}')
                 log.warning('Input data is not supported.')
                 return result
             except EyeError as err:

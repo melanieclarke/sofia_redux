@@ -138,7 +138,8 @@ class QADImView(object):
         os.environ["XPA_METHOD"] = "local"
 
         # signals for plot events
-        self.HAS_PYQT5 = HAS_PYQT5
+        #self.HAS_PYQT5 = HAS_PYQT5
+        self.HAS_PYQT5 = False
         if self.HAS_PYQT5:
             self.signals = ViewerSignals()
             self.signals.make_radial_plot.connect(self.radial_plot)
@@ -2022,6 +2023,8 @@ class QADImView(object):
             if 'spectral_flux' in extname:
                 return 'spectrum'
             elif 'extract1d' in extname:
+                return 'spectrum_only'
+            elif 'combine1d' in extname:
                 return 'spectrum_only'
 
         header = hdul[0].header
