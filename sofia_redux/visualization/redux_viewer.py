@@ -101,7 +101,7 @@ class EyeViewer(Viewer):
             self.eye.add_panes(kind='spectrum', n_panes=1, layout='rows')
             try:
                 self.eye.load(self.display_data)
-            except (TypeError, KeyError):
+            except (TypeError, KeyError, ValueError):
                 log.warning('Invalid data; not displaying')
                 self.display_data = None
                 self.eye.reset()

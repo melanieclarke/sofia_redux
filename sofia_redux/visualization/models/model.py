@@ -276,6 +276,10 @@ def parse_jwst(hdul):
     msa = (hdul[0].header['EXP_TYPE'] == 'NRS_MSASPEC')
     for hdu in hdul:
         if hdu.name == 'EXTRACT1D' or hdu.name == 'COMBINE1D':
+            if len(data) == 0:
+                header['XUNITS'] = hdu.header.get('TUNIT1', 'um')
+                header['YUNITS'] = hdu.header.get('TUNIT2', 'Jy')
+
             wave = hdu.data['WAVELENGTH']
             flux = hdu.data['FLUX']
             sb = hdu.data['SURF_BRIGHT']
@@ -290,25 +294,29 @@ def parse_jwst(hdul):
                     error = hdu.data['ERROR']
                 except KeyError:
                     error = np.full_like(flux, np.nan)
-            norders += 1
-
-            if msa:
-                try:
-                    order_name = int(hdu.header['SLTNAME'])
-                except (ValueError, TypeError, KeyError):
+            if wave.ndim == 1:
+                norders += 1
+                if msa:
+                    try:
+                        order_name = int(hdu.header['SLTNAME'])
+                    except (ValueError, TypeError, KeyError):
+                        order_name = norders
+                else:
                     order_name = norders
+                order_names.append(order_name)
+
+                if wave.size > max_size:
+                    max_size = wave.size
+
+                data[order_name] = [wave, flux, error, sb, bg]
             else:
-                order_name = norders
-            order_names.append(order_name)
-
-            if len(data) == 0:
-                header['XUNITS'] = hdu.header.get('TUNIT1', 'um')
-                header['YUNITS'] = hdu.header.get('TUNIT2', 'Jy')
-
-            if wave.size > max_size:
-                max_size = wave.size
-
-            data[order_name] = [wave, flux, error, sb, bg]
+                for w, f, e, s, b in zip(wave, flux, error, sb, bg):
+                    norders += 1
+                    order_name = norders
+                    order_names.append(order_name)
+                    if w.size > max_size:
+                        max_size = wave.size
+                    data[order_name] = [w, f, e, s, b]
 
     # if slits are numbered, set orders from max slit number
     # This allows filtering orders by slit ID
